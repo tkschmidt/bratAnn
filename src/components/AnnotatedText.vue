@@ -336,7 +336,9 @@ const stringMatches = computed(() => {
 <style scoped>
 .annotated-text-container {
   width: 100%;
+  max-width: 100%;
   padding: 1rem;
+  box-sizing: border-box;
 }
 
 .controls {
@@ -344,11 +346,13 @@ const stringMatches = computed(() => {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .offset-slider {
   flex: 1;
   max-width: 300px;
+  min-width: 100px;
 }
 
 .offset-value {
@@ -365,6 +369,7 @@ const stringMatches = computed(() => {
   border-radius: 4px;
   font-family: monospace;
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .text-display-wrapper {
@@ -373,6 +378,9 @@ const stringMatches = computed(() => {
   border: 1px solid #eee;
   border-radius: 4px;
   background-color: white;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .line-numbers {
@@ -385,6 +393,7 @@ const stringMatches = computed(() => {
   text-align: right;
   min-width: 4em;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .line-number {
@@ -398,6 +407,8 @@ const stringMatches = computed(() => {
   line-height: 1.6;
   white-space: pre-wrap;
   font-family: monospace;
+  overflow-x: hidden;
+  word-wrap: break-word;
 }
 
 .highlighted-text {
@@ -411,6 +422,9 @@ const stringMatches = computed(() => {
   padding: 1rem;
   border: 1px solid #eee;
   border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
 }
 
 .matches-table {
@@ -418,6 +432,7 @@ const stringMatches = computed(() => {
   border-collapse: collapse;
   margin-top: 1rem;
   font-size: 0.9rem;
+  table-layout: fixed;
 }
 
 .matches-table th,
@@ -425,12 +440,9 @@ const stringMatches = computed(() => {
   padding: 0.5rem;
   text-align: left;
   border: 1px solid #ddd;
-  vertical-align: top;
-}
-
-.matches-table th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-wrap: break-word;
 }
 
 .position-mismatch td {
@@ -447,6 +459,8 @@ const stringMatches = computed(() => {
   padding: 0.5rem;
   background-color: #f5f5f5;
   border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .threshold-slider {
@@ -474,8 +488,14 @@ mark {
 }
 
 .context-entry {
+  margin-bottom: 0.5rem;
   font-family: monospace;
   font-size: 0.85rem;
   white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.context-text {
+  color: #666;
 }
 </style> 

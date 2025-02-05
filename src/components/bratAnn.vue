@@ -117,11 +117,15 @@ handleTextChange()
 <style scoped>
 .brat-annotation {
   width: 100%;
+  max-width: 100%;
   padding: 1rem;
+  box-sizing: border-box;
 }
 
 .annotation-input, .text-visualization {
   margin-bottom: 2rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .text-input {
@@ -133,14 +137,17 @@ handleTextChange()
   border-radius: 4px;
   font-family: monospace;
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .parsed-output {
+  width: 100%;
+  overflow-x: auto;
   padding: 1rem;
   border: 1px solid #eee;
   border-radius: 4px;
   background-color: #f9f9f9;
-  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .annotation-table {
@@ -148,6 +155,7 @@ handleTextChange()
   border-collapse: collapse;
   margin-top: 1rem;
   font-size: 0.9rem;
+  table-layout: fixed;
 }
 
 .annotation-table th,
@@ -155,19 +163,27 @@ handleTextChange()
   padding: 0.5rem;
   text-align: left;
   border: 1px solid #ddd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-wrap: break-word;
 }
 
-.annotation-table th {
-  background-color: #f5f5f5;
-  font-weight: bold;
+/* Column widths */
+.annotation-table th:nth-child(1), /* ID */
+.annotation-table td:nth-child(1) {
+  width: 10%;
 }
 
-.annotation-table tr:nth-child(even) {
-  background-color: #fafafa;
+.annotation-table th:nth-child(2), /* Type */
+.annotation-table td:nth-child(2) {
+  width: 15%;
 }
 
-.annotation-table tr:hover {
-  background-color: #f0f0f0;
+.annotation-table th:nth-child(3), /* Start */
+.annotation-table td:nth-child(3),
+.annotation-table th:nth-child(4), /* Stop */
+.annotation-table td:nth-child(4) {
+  width: 10%;
 }
 
 .length-mismatch {
@@ -179,7 +195,6 @@ handleTextChange()
 .mismatch-info {
   margin-left: 0.5rem;
   cursor: help;
-  white-space: nowrap;
 }
 </style>
 
