@@ -60,11 +60,11 @@
       <table class="matches-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Value</th>
-            <th>Annotated Position</th>
-            <th>Exact Matches</th>
-            <th>Fuzzy Matches</th>
+            <th class="col-id">ID</th>
+            <th class="col-value">Value</th>
+            <th class="col-position">Annotated Position</th>
+            <th class="col-found">Found Positions</th>
+            <th class="col-fuzzy">Fuzzy Matches</th>
           </tr>
         </thead>
         <tbody>
@@ -435,6 +435,28 @@ const stringMatches = computed(() => {
   table-layout: fixed;
 }
 
+/* Optimized column widths */
+.col-id {
+  width: 60px;  /* Fixed width for IDs like "T1", "T2" */
+}
+
+.col-value {
+  width: 15%;  /* Reasonable space for the value */
+}
+
+.col-position {
+  width: 120px;  /* Fixed width for positions like "123-456" */
+}
+
+.col-found {
+  width: 15%;  /* Space for found positions */
+}
+
+.col-fuzzy {
+  /* Takes remaining space (approximately 60%) */
+  /* No width specified to take remaining space */
+}
+
 .matches-table th,
 .matches-table td {
   padding: 0.5rem;
@@ -473,6 +495,9 @@ const stringMatches = computed(() => {
   padding: 0.5rem;
   border-left: 3px solid #2196f3;
   background-color: #f8f9fa;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 .match-score {
