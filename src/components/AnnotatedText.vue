@@ -89,25 +89,37 @@
           <span class="control-hint">Maximum edit distance allowed</span>
         </div>
       </div>
-      <table class="matches-table">
+      <div class="column-toggles">
+        <label v-for="(label, col) in columnLabels" :key="col" class="toggle-label">
+          <input 
+            type="checkbox" 
+            v-model="visibleColumns[col]"
+            :disabled="col === 'value'"  <!-- Always show value column -->
+          >
+          {{ label }}
+        </label>
+      </div>
+      <table class="matches-table" v-if="filteredMatches.length || sourceText">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Value</th>
-            <th>Annotated Position</th>
-            <th>Found Positions</th>
-            <th>Fuzzy Matches</th>
-            <th>Meta</th>
+            <th v-if="visibleColumns.id">ID</th>
+            <th v-if="visibleColumns.type">Type</th>
+            <th v-if="visibleColumns.value">Value</th>
+            <th v-if="visibleColumns.annotatedPosition">Annotated Position</th>
+            <th v-if="visibleColumns.foundPositions">Found Positions</th>
+            <th v-if="visibleColumns.fuzzyMatches">Fuzzy Matches</th>
+            <th v-if="visibleColumns.meta">Meta</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="match in filteredMatches" 
               :key="match.id"
               :class="{ 'position-mismatch': hasNoMatches(match) }">
-            <td>{{ match.id }}</td>
-            <td>{{ match.value }}</td>
-            <td>{{ match.annotatedPosition }}</td>
-            <td>
+            <td v-if="visibleColumns.id">{{ match.id }}</td>
+            <td v-if="visibleColumns.type">{{ match.key }}</td>
+            <td v-if="visibleColumns.value">{{ match.value }}</td>
+            <td v-if="visibleColumns.annotatedPosition">{{ match.annotatedPosition }}</td>
+            <td v-if="visibleColumns.foundPositions">
               <span v-if="match.exactPositions.length === 0">Not found</span>
               <span v-else>
                 {{ match.exactPositions.join(', ') }}
@@ -116,7 +128,7 @@
                       :title="match.mismatchInfo">⚠️</span>
               </span>
             </td>
-            <td>
+            <td v-if="visibleColumns.fuzzyMatches">
               <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
                    :key="index" 
                    class="fuzzy-match">
@@ -131,7 +143,7 @@
                 </div>
               </div>
             </td>
-            <td>{{ match.meta || '-' }}</td>
+            <td v-if="visibleColumns.meta">{{ match.meta || '-' }}</td>
           </tr>
         </tbody>
       </table>
@@ -154,10 +166,20 @@ const props = defineProps({
   }
 })
 
-const sourceText = ref(props.defaultText)  // Initialize with default text
+const sourceText = ref(props.defaultText)
 const offsetValue = ref(0)
 const fuseThreshold = ref(0.1)
 const fuseDistance = ref(1)
+const idFilter = ref('')
+const visibleColumns = ref({
+  id: true,
+  type: true,
+  value: true,
+  annotatedPosition: true,
+  foundPositions: true,
+  fuzzyMatches: true,
+  meta: true
+})
 
 // Force recomputation when fuzzy parameters change
 const fuzzyParams = computed(() => ({
@@ -335,8 +357,9 @@ const stringMatches = computed(() => {
     const annotatedPosition = `${ann.start_position}-${ann.stop_position}`
     
     return {
-      id: ann.id,
-      value: ann.value.replace(/\n/g, '↵'),
+      id: ann.id || '',
+      key: ann.key || '',
+      value: ann.value || '',
       annotatedPosition,
       start_position: ann.start_position,
       exactPositions,
@@ -360,16 +383,13 @@ const hasNoMatches = (match) => {
   return match.exactPositions.length === 0 && match.fuzzyMatches.length === 0
 }
 
-const idFilter = ref('')
-
-// Update stringMatches computed to be filtered
 const filteredMatches = computed(() => {
-  const matches = stringMatches.value
-  if (!idFilter.value) return matches
+  if (!stringMatches.value) return []
   
-  return matches.filter(match => 
-    match.id.toLowerCase().includes(idFilter.value.toLowerCase())
-  )
+  return stringMatches.value.filter(match => {
+    if (!idFilter.value) return true
+    return match.id.toLowerCase().includes(idFilter.value.toLowerCase())
+  })
 })
 
 const normalizeText = (text) => {
