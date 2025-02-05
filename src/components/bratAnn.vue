@@ -17,15 +17,22 @@
               <th>Start</th>
               <th>Stop</th>
               <th>Value</th>
+              <th>Length</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ann in parsedAnnotations" :key="ann.id">
+            <tr v-for="ann in annotationsWithLength" :key="ann.id">
               <td>{{ ann.id }}</td>
               <td>{{ ann.key }}</td>
               <td>{{ ann.start_position }}</td>
               <td>{{ ann.stop_position }}</td>
               <td>{{ ann.value }}</td>
+              <td :class="{ 'length-mismatch': ann.hasLengthMismatch }">
+                {{ ann.valueLength }}
+                <span v-if="ann.hasLengthMismatch" class="mismatch-info" :title="ann.mismatchInfo">
+                  ⚠️ (Δ{{ ann.lengthDelta }})
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -39,22 +46,37 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import AnnotatedText from './AnnotatedText.vue'
 
 const inputText = ref('')
 const parsedAnnotations = ref([])
+
+const annotationsWithLength = computed(() => {
+  return parsedAnnotations.value.map(ann => {
+    const valueLength = ann.value.length
+    const spanLength = ann.stop_position - ann.start_position
+    const hasLengthMismatch = valueLength !== spanLength
+    const lengthDelta = valueLength - spanLength
+    
+    return {
+      ...ann,
+      valueLength,
+      hasLengthMismatch,
+      lengthDelta,
+      mismatchInfo: hasLengthMismatch 
+        ? `Mismatch: Value length (${valueLength}) ≠ Span length (${spanLength}), Delta: ${lengthDelta}`
+        : ''
+    }
+  })
+})
 
 const handleTextChange = () => {
   const lines = inputText.value.split('\n').filter(line => line.trim())
   
   parsedAnnotations.value = lines.map(line => {
     const [id, keyWithPosition, ...valueParts] = line.split('\t')
-    
-    // Split the key and position part (e.g., "Compound 67 71")
     const [key, startPos, endPos] = keyWithPosition.split(' ')
-    
-    // Combine remaining parts as the value
     const value = valueParts.join('\t').trim()
     
     return {
@@ -122,6 +144,18 @@ const handleTextChange = () => {
 
 .annotation-table tr:hover {
   background-color: #f0f0f0;
+}
+
+.length-mismatch {
+  background-color: #ffebee;
+  color: #c62828;
+  font-weight: bold;
+}
+
+.mismatch-info {
+  margin-left: 0.5rem;
+  cursor: help;
+  white-space: nowrap;
 }
 </style>
 
