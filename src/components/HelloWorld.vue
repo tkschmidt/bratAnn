@@ -1,10 +1,12 @@
 <script setup>
 import BratAnn from './bratAnn.vue'
+
+const commitSha = import.meta.env.VITE_COMMIT_SHA || 'dev'
 </script>
 
 <template>
   <div class="brat-container">
-    <h2>BRAT Annotation Checker</h2>
+    <h2>BRAT Annotation Checker ({{ commitSha }})</h2>
     <p class="tool-description">
       A tool for checking and validating BRAT annotations. Paste your source text and annotations to verify positions, 
       find fuzzy matches, and detect potential misalignments. It can be used with the 
@@ -30,6 +32,6 @@ import BratAnn from './bratAnn.vue'
   color: #666;
   margin: 1rem 0 2rem;
   line-height: 1.5;
-  max-width: fit-content;
+  max-width: 800px;
 }
 </style>
