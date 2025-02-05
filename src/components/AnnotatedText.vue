@@ -14,9 +14,10 @@
       <span class="offset-value">{{ offsetValue }}</span>
     </div>
     <textarea 
-      v-model="sourceText" 
-      placeholder="Paste your source text here..."
+      v-model="sourceText"
+      @input="handleSourceTextInput"
       class="text-input"
+      placeholder="Paste your source text here..."
     ></textarea>
     <div class="text-display-wrapper">
       <div class="line-numbers">
@@ -145,24 +146,14 @@ const props = defineProps({
   annotations: {
     type: Array,
     default: () => []
+  },
+  defaultText: {
+    type: String,
+    default: ''
   }
 })
 
-const defaultText = `Sample preparation for mass spectrometry. Dried peptide pools
-were initially solubilized in 100% DMSO to a concentration of
-10 pmol/µl by vortexing for 30 min at room temperature. The
-pools were then diluted to 10% DMSO using 1% formic acid in
-HPLCgrade water to a stock solution concentration of 1 pmol/µl
-and stored at −20 °C until use. 10 µl of the stock solution was
-transferred to a 96well plate and spiked with two retention
-time (RT) standards. The first set of RT peptides (JPT Peptide
-Technologies) consisted of 66 peptides with nonnaturally occurring peptide sequences (Supplementary Table 1). 200 fmol
-per peptide was used per injection. The second RT standard
-(Pierce, Thermo Scientific) comprised 15 13Clabeled peptides, and 100 fmol per peptide was used per injection. Samples
-in the resulting 96well plates were vacuum dried and stored
-at −20 °C until use`
-
-const sourceText = ref(defaultText)
+const sourceText = ref(props.defaultText)  // Initialize with default text
 const offsetValue = ref(0)
 const fuseThreshold = ref(0.1)
 const fuseDistance = ref(1)
@@ -270,7 +261,12 @@ const textChunks = computed(() => {
   return chunks
 })
 
+const handleSourceTextInput = (event) => {
+  sourceText.value = normalizeText(event.target.value)
+}
+
 const findFuzzyMatches = (text, searchValue) => {
+  // Text is already normalized when stored
   const possibleMatches = []
   const windowSize = searchValue.length * 2
   
@@ -373,6 +369,16 @@ const filteredMatches = computed(() => {
     match.id.toLowerCase().includes(idFilter.value.toLowerCase())
   )
 })
+
+const normalizeText = (text) => {
+  return text
+    .replace(/−/g, '-')     // Replace minus sign with hyphen-minus
+    .replace(/['']/g, "'")  // Normalize single quotes
+    .replace(/[""]/g, '"')  // Normalize double quotes
+    .replace(/\u2009/g, ' ') // Replace thin spaces
+    .replace(/µ/g, 'µ')     // Normalize micro symbol
+    .replace(/\r\n/g, '\n') // Normalize line endings
+}
 </script>
 
 <style scoped>

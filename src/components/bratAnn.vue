@@ -40,7 +40,10 @@
     </div>
     <div class="text-visualization">
       <h3>Text Visualization</h3>
-      <AnnotatedText :annotations="parsedAnnotations" />
+      <AnnotatedText 
+        :annotations="parsedAnnotations"
+        :default-text="defaultText"
+      />
     </div>
   </div>
 </template>
@@ -48,6 +51,20 @@
 <script setup>
 import { ref, computed } from 'vue'
 import AnnotatedText from './AnnotatedText.vue'
+
+const defaultText = `Sample preparation for mass spectrometry. Dried peptide pools
+were initially solubilized in 100% DMSO to a concentration of
+10 pmol/µl by vortexing for 30 min at room temperature. The
+pools were then diluted to 10% DMSO using 1% formic acid in
+HPLCgrade water to a stock solution concentration of 1 pmol/µl
+and stored at −20 °C until use. 10 µl of the stock solution was
+transferred to a 96well plate and spiked with two retention
+time (RT) standards. The first set of RT peptides (JPT Peptide
+Technologies) consisted of 66 peptides with nonnaturally occurring peptide sequences (Supplementary Table 1). 200 fmol
+per peptide was used per injection. The second RT standard
+(Pierce, Thermo Scientific) comprised 15 13Clabeled peptides, and 100 fmol per peptide was used per injection. Samples
+in the resulting 96well plates were vacuum dried and stored
+at −20 °C until use`
 
 const defaultAnnotations = `T1	Compound 67 71	DMSO
 T2	ConcentrationOfCompound 94 106	10 pmol/µl
@@ -92,13 +109,23 @@ const annotationsWithLength = computed(() => {
   })
 })
 
+const normalizeText = (text) => {
+  return text
+    .replace(/−/g, '-')     // Replace minus sign with hyphen-minus
+    .replace(/['']/g, "'")  // Normalize single quotes
+    .replace(/[""]/g, '"')  // Normalize double quotes
+    .replace(/\u2009/g, ' ') // Replace thin spaces
+    .replace(/µ/g, 'µ')     // Normalize micro symbol
+    .replace(/\r\n/g, '\n') // Normalize line endings
+}
+
 const handleTextChange = () => {
   const lines = inputText.value.split('\n').filter(line => line.trim())
   
   parsedAnnotations.value = lines.map(line => {
     const [id, keyWithPosition, ...valueParts] = line.split('\t')
     const [key, startPos, endPos] = keyWithPosition.split(' ')
-    const value = valueParts.join('\t').trim()
+    const value = normalizeText(valueParts.join('\t').trim())
     
     return {
       id,
@@ -110,7 +137,7 @@ const handleTextChange = () => {
   })
 }
 
-// Call handleTextChange initially to parse the default annotations
+// Initialize with default annotations
 handleTextChange()
 </script>
 
