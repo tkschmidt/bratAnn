@@ -40,6 +40,47 @@
         </template>
       </div>
     </div>
+
+    <div class="string-matches">
+      <h4>String Position Analysis</h4>
+      <table class="matches-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Value</th>
+            <th>Annotated Position</th>
+            <th>Found Positions</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="match in stringMatches" 
+              :key="match.id"
+              :class="{ 'position-mismatch': match.hasPositionMismatch }">
+            <td>{{ match.id }}</td>
+            <td>{{ match.value }}</td>
+            <td>{{ match.annotatedPosition }}</td>
+            <td>
+              <span v-if="match.positions.length === 0">Not found</span>
+              <span v-else>
+                {{ match.positions.join(', ') }}
+                <span v-if="match.hasPositionMismatch" 
+                      class="mismatch-warning" 
+                      :title="match.mismatchInfo">⚠️</span>
+              </span>
+            </td>
+            <td>
+              <div v-for="(ctx, index) in match.positionsWithContext" 
+                   :key="index" 
+                   class="context-entry">
+                <strong>@{{ ctx.position }}:</strong> 
+                <span class="context-text">{{ ctx.context }}</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -152,6 +193,68 @@ const textChunks = computed(() => {
   
   return chunks
 })
+
+const findAllOccurrences = (str, searchValue) => {
+  const positions = []
+  let pos = 0
+  
+  // Convert both strings to normalized form to handle potential line ending differences
+  const normalizedText = str.replace(/\r\n/g, '\n')
+  const normalizedSearch = searchValue.replace(/\r\n/g, '\n')
+  
+  while (true) {
+    pos = normalizedText.indexOf(normalizedSearch, pos)
+    if (pos === -1) break
+    
+    // Also try matching with different line endings
+    const alternateMatch = str.slice(pos, pos + searchValue.length)
+    if (alternateMatch.replace(/\r\n/g, '\n') === normalizedSearch) {
+      positions.push(pos)
+    }
+    
+    pos += 1 // Move to next character to continue search
+  }
+  return positions
+}
+
+const stringMatches = computed(() => {
+  if (!sourceText.value) return []
+  
+  return props.annotations.map(ann => {
+    // Get all positions where the value appears
+    const positions = findAllOccurrences(sourceText.value, ann.value)
+    const annotatedPosition = `${ann.start_position}-${ann.stop_position}`
+    
+    // Check if the annotated position matches any found position
+    const hasPositionMismatch = !positions.includes(ann.start_position)
+    
+    // Create context snippets for each position
+    const positionsWithContext = positions.map(pos => {
+      const start = Math.max(0, pos - 20)
+      const end = Math.min(sourceText.value.length, pos + ann.value.length + 20)
+      const context = sourceText.value.slice(start, end)
+        .replace(/\n/g, '↵') // Show line breaks with symbol
+        .replace(/\r/g, '') // Remove carriage returns from display
+      
+      return {
+        position: pos,
+        context: `...${context}...`
+      }
+    })
+    
+    return {
+      id: ann.id,
+      value: ann.value.replace(/\n/g, '↵'), // Show line breaks in value
+      annotatedPosition,
+      positions,
+      positionsWithContext,
+      hasPositionMismatch,
+      mismatchInfo: hasPositionMismatch 
+        ? `Annotated position (${ann.start_position}) not found in actual string positions`
+        : ''
+    }
+  })
+})
 </script>
 
 <style scoped>
@@ -225,5 +328,55 @@ const textChunks = computed(() => {
   padding: 2px 0;
   border-radius: 2px;
   cursor: help;
+}
+
+.string-matches {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.matches-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.matches-table th,
+.matches-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border: 1px solid #ddd;
+  vertical-align: top;
+}
+
+.matches-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.position-mismatch td {
+  background-color: #fff3f3;
+}
+
+.mismatch-warning {
+  margin-left: 0.5rem;
+  cursor: help;
+}
+
+.context-entry {
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.context-text {
+  color: #666;
+}
+
+.context-entry strong {
+  color: #000;
 }
 </style> 
