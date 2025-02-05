@@ -92,11 +92,12 @@
       <table class="matches-table">
         <thead>
           <tr>
-            <th class="col-id">ID</th>
-            <th class="col-value">Value</th>
-            <th class="col-position">Annotated Position</th>
-            <th class="col-found">Found Positions</th>
-            <th class="col-fuzzy">Fuzzy Matches</th>
+            <th>ID</th>
+            <th>Value</th>
+            <th>Annotated Position</th>
+            <th>Found Positions</th>
+            <th>Fuzzy Matches</th>
+            <th>Meta</th>
           </tr>
         </thead>
         <tbody>
@@ -116,7 +117,6 @@
               </span>
             </td>
             <td>
-              <div v-if="match.fuzzyMatches.length === 0">No fuzzy matches found</div>
               <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
                    :key="index" 
                    class="fuzzy-match">
@@ -131,6 +131,7 @@
                 </div>
               </div>
             </td>
+            <td>{{ match.meta || '-' }}</td>
           </tr>
         </tbody>
       </table>
@@ -343,7 +344,8 @@ const stringMatches = computed(() => {
       hasPositionMismatch: !exactPositions.includes(ann.start_position),
       mismatchInfo: !exactPositions.includes(ann.start_position)
         ? `Annotated position (${ann.start_position}) not found in exact matches`
-        : ''
+        : '',
+      meta: ann.meta
     }
   })
 })
@@ -643,5 +645,12 @@ mark {
 
 .context-text {
   color: #666;
+}
+
+.matches-table th:last-child,
+.matches-table td:last-child {
+  width: 15%;
+  color: #666;
+  font-style: italic;
 }
 </style> 

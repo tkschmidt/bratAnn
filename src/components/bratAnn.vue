@@ -17,22 +17,17 @@
               <th>Start</th>
               <th>Stop</th>
               <th>Value</th>
-              <th>Length</th>
+              <th>Meta</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ann in annotationsWithLength" :key="ann.id">
+            <tr v-for="ann in parsedAnnotations" :key="ann.id">
               <td>{{ ann.id }}</td>
               <td>{{ ann.key }}</td>
               <td>{{ ann.start_position }}</td>
               <td>{{ ann.stop_position }}</td>
               <td>{{ ann.value }}</td>
-              <td :class="{ 'length-mismatch': ann.hasLengthMismatch }">
-                {{ ann.valueLength }}
-                <span v-if="ann.hasLengthMismatch" class="mismatch-info" :title="ann.mismatchInfo">
-                  ⚠️ (Δ{{ ann.lengthDelta }})
-                </span>
-              </td>
+              <td>{{ ann.meta || '-' }}</td>
             </tr>
           </tbody>
         </table>
@@ -66,26 +61,24 @@ per peptide was used per injection. The second RT standard
 in the resulting 96well plates were vacuum dried and stored
 at −20 °C until use`
 
-const defaultAnnotations = `T1	Compound 67 71	DMSO
-T2	ConcentrationOfCompound 94 106	10 pmol/µl
-T3	Time 132 140	30 min
-T4	Temperature 144 159	room temperature
-T5	Compound 179 187	formic acid
-T6	ConcentrationOfCompound 208 219	1 pmol/µl
-T7	Temperature 238 243	-20 °C
-T8	ConcentrationOfCompound 249 252	10 µl
-T9	SpikedCompound 308 328	retention time (RT) standards
-T10	SpikedCompound 366 394	RT peptides (JPT Peptide Technologies)
-T11	NumberOfSamples 407 409	66
-T12	SpikedCompound 529 539	Retention time
-T13	NumberOfSamples 550 552	15
-T14	Label 553 566	13C-labeled
-T15	ConcentrationOfCompound 571 579	100 fmol
-T16	ConcentrationOfCompound 477 485	200 fmol
-T17	NumberOfSamples 580 583	per peptide
-T18	Temperature 643 648	-20 °C
-T19	NumberOfSamples 275 283	96-well plate
-T20	NumberOfSamples 700 708	96-well plates`
+const defaultAnnotations = `T1	ConcentrationOfCompound	85	101	10 pmol/µl	Explicit
+T2	Time	130	136	30 min	Explicit
+T3	Temperature	140	154	room temperature	Explicit
+T4	Compound	67	71	DMSO	Explicit
+T5	Compound	203	215	formic acid	Explicit
+T6	ConcentrationOfCompound	177	189	10% DMSO	Explicit
+T7	ConcentrationOfCompound	241	250	1 pmol/µl	Explicit
+T8	Temperature	275	280	-20 °C	Explicit
+T9	Volume	292	296	10 µl	Explicit
+T10	SampleTreatment	343	356	spiked	Explicit
+T11	SpikedCompound	359	379	retention time (RT) standards	Explicit
+T12	SpikedCompound	405	432	RT peptides (JPT Peptide Technologies)	Explicit
+T13	SyntheticPeptide	448	457	66 peptides	Explicit
+T14	ConcentrationOfCompound	511	521	200 fmol	Explicit
+T15	SpikedCompound	569	593	RT standard (Pierce, Thermo Scientific)	Explicit
+T16	SyntheticPeptide	606	617	15 13C-labeled peptides	Explicit
+T17	ConcentrationOfCompound	623	632	100 fmol	Explicit
+T18	Temperature	720	725	-20 °C	Explicit`
 
 const inputText = ref(defaultAnnotations)
 const parsedAnnotations = ref([])
@@ -117,22 +110,22 @@ const normalizeText = (text) => {
     .replace(/\u2009/g, ' ') // Replace thin spaces
     .replace(/µ/g, 'µ')     // Normalize micro symbol
     .replace(/\r\n/g, '\n') // Normalize line endings
+    .replace(/(\d+)\s*[°˚]\s*([CF])/g, '$1°$2')  // Normalize temperature format
+    .replace(/[−‐‑‒–—―]/g, '-') // Normalize all types of dashes/hyphens
 }
 
 const handleTextChange = () => {
   const lines = inputText.value.split('\n').filter(line => line.trim())
   
   parsedAnnotations.value = lines.map(line => {
-    const [id, keyWithPosition, ...valueParts] = line.split('\t')
-    const [key, startPos, endPos] = keyWithPosition.split(' ')
-    const value = normalizeText(valueParts.join('\t').trim())
-    
+    const parts = line.split('\t')
     return {
-      id,
-      key,
-      start_position: parseInt(startPos),
-      stop_position: parseInt(endPos),
-      value
+      id: parts[0] || '',
+      key: parts[1] || '',
+      start_position: parseInt(parts[2]) || 0,
+      stop_position: parseInt(parts[3]) || 0,
+      value: parts[4] ? normalizeText(parts[4]) : '',
+      meta: parts[5] || null
     }
   })
 }
@@ -211,6 +204,12 @@ handleTextChange()
 .annotation-table th:nth-child(4), /* Stop */
 .annotation-table td:nth-child(4) {
   width: 10%;
+}
+
+.annotation-table th:last-child,
+.annotation-table td:last-child {
+  color: #666;
+  font-style: italic;
 }
 
 .length-mismatch {
