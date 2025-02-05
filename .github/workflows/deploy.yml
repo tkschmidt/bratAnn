@@ -43,9 +43,21 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+      
+      # Cache the dist directory
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist
+            node_modules/.vite
+          key: ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx', '**.vue') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ hashFiles('**/package-lock.json') }}-
+            ${{ runner.os }}-build-
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Build
         env:
