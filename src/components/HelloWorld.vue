@@ -26,12 +26,13 @@ const commitSha = import.meta.env.VITE_COMMIT_SHA || 'dev'
   padding: 1rem;
   border: 1px solid #ddd;
   border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tool-description {
   color: #666;
   margin: 1rem 0 2rem;
   line-height: 1.5;
-  max-width: 800px;
 }
 </style>
