@@ -43,14 +43,28 @@
 
     <div class="string-matches">
       <h4>String Position Analysis</h4>
+      <div class="fuzzy-controls">
+        <label>
+          Fuzzy Threshold:
+          <input 
+            type="range" 
+            v-model="fuseThreshold" 
+            min="0" 
+            max="1" 
+            step="0.1"
+            class="threshold-slider"
+          />
+          <span class="threshold-value">{{ fuseThreshold }}</span>
+        </label>
+      </div>
       <table class="matches-table">
         <thead>
           <tr>
             <th>ID</th>
             <th>Value</th>
             <th>Annotated Position</th>
-            <th>Found Positions</th>
-            <th>Context</th>
+            <th>Exact Matches</th>
+            <th>Fuzzy Matches</th>
           </tr>
         </thead>
         <tbody>
@@ -61,20 +75,25 @@
             <td>{{ match.value }}</td>
             <td>{{ match.annotatedPosition }}</td>
             <td>
-              <span v-if="match.positions.length === 0">Not found</span>
+              <span v-if="match.exactPositions.length === 0">Not found</span>
               <span v-else>
-                {{ match.positions.join(', ') }}
+                {{ match.exactPositions.join(', ') }}
                 <span v-if="match.hasPositionMismatch" 
                       class="mismatch-warning" 
                       :title="match.mismatchInfo">⚠️</span>
               </span>
             </td>
             <td>
-              <div v-for="(ctx, index) in match.positionsWithContext" 
+              <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
                    :key="index" 
-                   class="context-entry">
-                <strong>@{{ ctx.position }}:</strong> 
-                <span class="context-text">{{ ctx.context }}</span>
+                   class="fuzzy-match">
+                <div class="match-score">
+                  Score: {{ fuzzyMatch.score.toFixed(2) }}
+                </div>
+                <div class="context-entry">
+                  <strong>@{{ fuzzyMatch.position }}:</strong> 
+                  <span class="context-text" v-html="fuzzyMatch.formattedText"></span>
+                </div>
               </div>
             </td>
           </tr>
@@ -86,6 +105,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import Fuse from 'fuse.js'
 
 const props = defineProps({
   annotations: {
@@ -94,8 +114,23 @@ const props = defineProps({
   }
 })
 
-const sourceText = ref('')
+const defaultText = `Sample preparation for mass spectrometry. Dried peptide pools
+were initially solubilized in 100% DMSO to a concentration of
+10 pmol/µl by vortexing for 30 min at room temperature. The
+pools were then diluted to 10% DMSO using 1% formic acid in
+HPLCgrade water to a stock solution concentration of 1 pmol/µl
+and stored at −20 °C until use. 10 µl of the stock solution was
+transferred to a 96well plate and spiked with two retention
+time (RT) standards. The first set of RT peptides (JPT Peptide
+Technologies) consisted of 66 peptides with nonnaturally occurring peptide sequences (Supplementary Table 1). 200 fmol
+per peptide was used per injection. The second RT standard
+(Pierce, Thermo Scientific) comprised 15 13Clabeled peptides, and 100 fmol per peptide was used per injection. Samples
+in the resulting 96well plates were vacuum dried and stored
+at −20 °C until use`
+
+const sourceText = ref(defaultText)
 const offsetValue = ref(0)
+const fuseThreshold = ref(0.3)
 
 // Calculate starting character position for each line
 const lineStartPositions = computed(() => {
@@ -194,25 +229,58 @@ const textChunks = computed(() => {
   return chunks
 })
 
-const findAllOccurrences = (str, searchValue) => {
+const findFuzzyMatches = (text, searchValue) => {
+  // Create array of possible matches by sliding window
+  const possibleMatches = []
+  const windowSize = searchValue.length * 2 // Wider window for fuzzy matching
+  
+  for (let i = 0; i < text.length - searchValue.length + 1; i++) {
+    possibleMatches.push({
+      text: text.slice(i, i + windowSize),
+      position: i
+    })
+  }
+
+  const fuse = new Fuse(possibleMatches, {
+    keys: ['text'],
+    includeScore: true,
+    threshold: fuseThreshold.value,
+    location: 0,
+    distance: Math.floor(searchValue.length / 2)
+  })
+
+  const results = fuse.search(searchValue)
+  
+  return results.map(result => {
+    const match = result.item
+    const score = 1 - result.score // Convert to similarity score
+    
+    // Highlight the matching part
+    const beforeMatch = match.text.slice(0, searchValue.length)
+    const afterMatch = match.text.slice(searchValue.length)
+    const formattedText = `...${beforeMatch}<mark>${afterMatch}</mark>...`
+
+    return {
+      position: match.position,
+      score,
+      formattedText,
+      context: match.text
+    }
+  }).filter(match => match.score > 0.5) // Filter out very low-quality matches
+}
+
+const findExactOccurrences = (str, searchValue) => {
   const positions = []
   let pos = 0
   
-  // Convert both strings to normalized form to handle potential line ending differences
   const normalizedText = str.replace(/\r\n/g, '\n')
   const normalizedSearch = searchValue.replace(/\r\n/g, '\n')
   
   while (true) {
     pos = normalizedText.indexOf(normalizedSearch, pos)
     if (pos === -1) break
-    
-    // Also try matching with different line endings
-    const alternateMatch = str.slice(pos, pos + searchValue.length)
-    if (alternateMatch.replace(/\r\n/g, '\n') === normalizedSearch) {
-      positions.push(pos)
-    }
-    
-    pos += 1 // Move to next character to continue search
+    positions.push(pos)
+    pos += 1
   }
   return positions
 }
@@ -221,36 +289,20 @@ const stringMatches = computed(() => {
   if (!sourceText.value) return []
   
   return props.annotations.map(ann => {
-    // Get all positions where the value appears
-    const positions = findAllOccurrences(sourceText.value, ann.value)
+    const exactPositions = findExactOccurrences(sourceText.value, ann.value)
+    const fuzzyMatches = findFuzzyMatches(sourceText.value, ann.value)
     const annotatedPosition = `${ann.start_position}-${ann.stop_position}`
-    
-    // Check if the annotated position matches any found position
-    const hasPositionMismatch = !positions.includes(ann.start_position)
-    
-    // Create context snippets for each position
-    const positionsWithContext = positions.map(pos => {
-      const start = Math.max(0, pos - 20)
-      const end = Math.min(sourceText.value.length, pos + ann.value.length + 20)
-      const context = sourceText.value.slice(start, end)
-        .replace(/\n/g, '↵') // Show line breaks with symbol
-        .replace(/\r/g, '') // Remove carriage returns from display
-      
-      return {
-        position: pos,
-        context: `...${context}...`
-      }
-    })
+    const hasPositionMismatch = !exactPositions.includes(ann.start_position)
     
     return {
       id: ann.id,
-      value: ann.value.replace(/\n/g, '↵'), // Show line breaks in value
+      value: ann.value.replace(/\n/g, '↵'),
       annotatedPosition,
-      positions,
-      positionsWithContext,
+      exactPositions,
+      fuzzyMatches,
       hasPositionMismatch,
       mismatchInfo: hasPositionMismatch 
-        ? `Annotated position (${ann.start_position}) not found in actual string positions`
+        ? `Annotated position (${ann.start_position}) not found in exact matches`
         : ''
     }
   })
@@ -366,17 +418,40 @@ const stringMatches = computed(() => {
   cursor: help;
 }
 
+.fuzzy-controls {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.threshold-slider {
+  width: 200px;
+  margin: 0 1rem;
+}
+
+.fuzzy-match {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border-left: 3px solid #2196f3;
+  background-color: #f8f9fa;
+}
+
+.match-score {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+mark {
+  background-color: #fff3cd;
+  padding: 0.1rem 0.2rem;
+  border-radius: 2px;
+}
+
 .context-entry {
-  margin-bottom: 0.5rem;
   font-family: monospace;
   font-size: 0.85rem;
-}
-
-.context-text {
-  color: #666;
-}
-
-.context-entry strong {
-  color: #000;
+  white-space: pre-wrap;
 }
 </style> 

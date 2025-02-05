@@ -49,7 +49,28 @@
 import { ref, computed } from 'vue'
 import AnnotatedText from './AnnotatedText.vue'
 
-const inputText = ref('')
+const defaultAnnotations = `T1	Compound 67 71	DMSO
+T2	ConcentrationOfCompound 94 106	10 pmol/µl
+T3	Time 132 140	30 min
+T4	Temperature 144 159	room temperature
+T5	Compound 179 187	formic acid
+T6	ConcentrationOfCompound 208 219	1 pmol/µl
+T7	Temperature 238 243	-20 °C
+T8	ConcentrationOfCompound 249 252	10 µl
+T9	SpikedCompound 308 328	retention time (RT) standards
+T10	SpikedCompound 366 394	RT peptides (JPT Peptide Technologies)
+T11	NumberOfSamples 407 409	66
+T12	SpikedCompound 529 539	Retention time
+T13	NumberOfSamples 550 552	15
+T14	Label 553 566	13C-labeled
+T15	ConcentrationOfCompound 571 579	100 fmol
+T16	ConcentrationOfCompound 477 485	200 fmol
+T17	NumberOfSamples 580 583	per peptide
+T18	Temperature 643 648	-20 °C
+T19	NumberOfSamples 275 283	96-well plate
+T20	NumberOfSamples 700 708	96-well plates`
+
+const inputText = ref(defaultAnnotations)
 const parsedAnnotations = ref([])
 
 const annotationsWithLength = computed(() => {
@@ -88,6 +109,9 @@ const handleTextChange = () => {
     }
   })
 }
+
+// Call handleTextChange initially to parse the default annotations
+handleTextChange()
 </script>
 
 <style scoped>
