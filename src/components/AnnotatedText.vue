@@ -255,10 +255,12 @@ const findFuzzyMatches = (text, searchValue) => {
     const match = result.item
     const score = 1 - result.score // Convert to similarity score
     
-    // Highlight the matching part
-    const beforeMatch = match.text.slice(0, searchValue.length)
-    const afterMatch = match.text.slice(searchValue.length)
-    const formattedText = `...${beforeMatch}<mark>${afterMatch}</mark>...`
+    // Fix: Highlight the actual matching portion
+    const matchText = match.text.slice(0, searchValue.length)
+    const contextBefore = text.slice(Math.max(0, match.position - 20), match.position)
+    const contextAfter = text.slice(match.position + searchValue.length, match.position + searchValue.length + 20)
+    
+    const formattedText = `${contextBefore}<mark>${matchText}</mark>${contextAfter}`
 
     return {
       position: match.position,
