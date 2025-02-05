@@ -43,20 +43,8 @@
     </div>
 
     <div class="string-matches">
-      <div class="analysis-header">
-        <h4>String Position Analysis</h4>
-        <div class="filter-control">
-          <label>
-            Filter ID:
-            <input 
-              type="text" 
-              v-model="idFilter"
-              placeholder="e.g., T1"
-              class="id-filter"
-            />
-          </label>
-        </div>
-      </div>
+      <h4>String Position Analysis</h4>
+      
       <div class="fuzzy-controls">
         <div class="control-group">
           <label>
@@ -99,54 +87,56 @@
           {{ label }}
         </label>
       </div>
-      <table class="matches-table" v-if="filteredMatches.length || sourceText">
-        <thead>
-          <tr>
-            <th v-if="visibleColumns.id">ID</th>
-            <th v-if="visibleColumns.type">Type</th>
-            <th v-if="visibleColumns.value">Value</th>
-            <th v-if="visibleColumns.annotatedPosition">Annotated Position</th>
-            <th v-if="visibleColumns.foundPositions">Found Positions</th>
-            <th v-if="visibleColumns.fuzzyMatches">Fuzzy Matches</th>
-            <th v-if="visibleColumns.meta">Meta</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="match in filteredMatches" 
-              :key="match.id"
-              :class="{ 'position-mismatch': hasNoMatches(match) }">
-            <td v-if="visibleColumns.id">{{ match.id }}</td>
-            <td v-if="visibleColumns.type">{{ match.key }}</td>
-            <td v-if="visibleColumns.value">{{ match.value }}</td>
-            <td v-if="visibleColumns.annotatedPosition">{{ match.annotatedPosition }}</td>
-            <td v-if="visibleColumns.foundPositions">
-              <span v-if="match.exactPositions.length === 0">Not found</span>
-              <span v-else>
-                {{ match.exactPositions.join(', ') }}
-                <span v-if="!match.exactPositions.includes(match.start_position)" 
-                      class="mismatch-warning" 
-                      :title="match.mismatchInfo">⚠️</span>
-              </span>
-            </td>
-            <td v-if="visibleColumns.fuzzyMatches">
-              <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
-                   :key="index" 
-                   class="fuzzy-match">
-                <div class="match-score">
-                  <span class="score-indicator" 
-                        :class="getScoreClass(fuzzyMatch.score)"></span>
-                  Score: {{ fuzzyMatch.score.toFixed(2) }}
+      <div class="table-wrapper">
+        <table class="matches-table" v-if="filteredMatches.length || sourceText">
+          <thead>
+            <tr>
+              <th v-if="visibleColumns.id">ID</th>
+              <th v-if="visibleColumns.type">Type</th>
+              <th v-if="visibleColumns.value">Value</th>
+              <th v-if="visibleColumns.annotatedPosition">Annotated Position</th>
+              <th v-if="visibleColumns.foundPositions">Found Positions</th>
+              <th v-if="visibleColumns.fuzzyMatches">Fuzzy Matches</th>
+              <th v-if="visibleColumns.meta">Meta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="match in filteredMatches" 
+                :key="match.id"
+                :class="{ 'position-mismatch': hasNoMatches(match) }">
+              <td v-if="visibleColumns.id">{{ match.id }}</td>
+              <td v-if="visibleColumns.type">{{ match.key }}</td>
+              <td v-if="visibleColumns.value">{{ match.value }}</td>
+              <td v-if="visibleColumns.annotatedPosition">{{ match.annotatedPosition }}</td>
+              <td v-if="visibleColumns.foundPositions">
+                <span v-if="match.exactPositions.length === 0">Not found</span>
+                <span v-else>
+                  {{ match.exactPositions.join(', ') }}
+                  <span v-if="!match.exactPositions.includes(match.start_position)" 
+                        class="mismatch-warning" 
+                        :title="match.mismatchInfo">⚠️</span>
+                </span>
+              </td>
+              <td v-if="visibleColumns.fuzzyMatches">
+                <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
+                     :key="index" 
+                     class="fuzzy-match">
+                  <div class="match-score">
+                    <span class="score-indicator" 
+                          :class="getScoreClass(fuzzyMatch.score)"></span>
+                    Score: {{ fuzzyMatch.score.toFixed(2) }}
+                  </div>
+                  <div class="context-entry">
+                    <strong>@{{ fuzzyMatch.position }}:</strong> 
+                    <span class="context-text" v-html="fuzzyMatch.formattedText"></span>
+                  </div>
                 </div>
-                <div class="context-entry">
-                  <strong>@{{ fuzzyMatch.position }}:</strong> 
-                  <span class="context-text" v-html="fuzzyMatch.formattedText"></span>
-                </div>
-              </div>
-            </td>
-            <td v-if="visibleColumns.meta">{{ match.meta || '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+              <td v-if="visibleColumns.meta">{{ match.meta || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -494,83 +484,6 @@ const normalizeText = (text) => {
   border-radius: 4px;
   width: 100%;
   box-sizing: border-box;
-  overflow-x: auto;
-}
-
-.analysis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.filter-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.id-filter {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  width: 100px;
-}
-
-.id-filter:focus {
-  outline: none;
-  border-color: #2196f3;
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
-}
-
-.matches-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  table-layout: fixed;
-}
-
-/* Optimized column widths */
-.col-id {
-  width: 60px;  /* Fixed width for IDs like "T1", "T2" */
-}
-
-.col-value {
-  width: 15%;  /* Reasonable space for the value */
-}
-
-.col-position {
-  width: 120px;  /* Fixed width for positions like "123-456" */
-}
-
-.col-found {
-  width: 15%;  /* Space for found positions */
-}
-
-.col-fuzzy {
-  /* Takes remaining space (approximately 60%) */
-  /* No width specified to take remaining space */
-}
-
-.matches-table th,
-.matches-table td {
-  padding: 0.5rem;
-  text-align: left;
-  border: 1px solid #ddd;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-wrap: break-word;
-}
-
-.position-mismatch td {
-  background-color: #fff3f3;
-}
-
-.mismatch-warning {
-  margin-left: 0.5rem;
-  cursor: help;
 }
 
 .fuzzy-controls {
@@ -667,10 +580,55 @@ mark {
   color: #666;
 }
 
-.matches-table th:last-child,
-.matches-table td:last-child {
-  width: 15%;
-  color: #666;
-  font-style: italic;
+.column-toggles {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-wrapper {
+  position: relative;
+}
+
+.matches-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.matches-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: white;
+}
+
+.matches-table th {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+  background: white;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+.matches-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  background: white;
+}
+
+.position-mismatch td {
+  background-color: #fff3f3;
+}
+
+.mismatch-warning {
+  margin-left: 0.5rem;
+  cursor: help;
 }
 </style> 
