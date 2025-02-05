@@ -230,9 +230,8 @@ const textChunks = computed(() => {
 })
 
 const findFuzzyMatches = (text, searchValue) => {
-  // Create array of possible matches by sliding window
   const possibleMatches = []
-  const windowSize = searchValue.length * 2 // Wider window for fuzzy matching
+  const windowSize = searchValue.length * 2
   
   for (let i = 0; i < text.length - searchValue.length + 1; i++) {
     possibleMatches.push({
@@ -246,29 +245,52 @@ const findFuzzyMatches = (text, searchValue) => {
     includeScore: true,
     threshold: fuseThreshold.value,
     location: 0,
-    distance: Math.floor(searchValue.length / 2)
+    distance: Math.floor(searchValue.length / 3), // Reduced distance
+    minMatchCharLength: Math.floor(searchValue.length * 0.8), // Minimum length of match
+    shouldSort: true,
+    findAllMatches: false
   })
 
   const results = fuse.search(searchValue)
   
-  return results.map(result => {
+  // Filter out overlapping matches
+  const filteredResults = results.reduce((acc, result) => {
     const match = result.item
-    const score = 1 - result.score // Convert to similarity score
+    const score = 1 - result.score
     
-    // Fix: Highlight the actual matching portion
-    const matchText = match.text.slice(0, searchValue.length)
-    const contextBefore = text.slice(Math.max(0, match.position - 20), match.position)
-    const contextAfter = text.slice(match.position + searchValue.length, match.position + searchValue.length + 20)
+    // Skip if score is too low
+    if (score < 0.6) return acc
     
-    const formattedText = `${contextBefore}<mark>${matchText}</mark>${contextAfter}`
-
-    return {
-      position: match.position,
-      score,
-      formattedText,
-      context: match.text
+    // Check if this match overlaps with any existing matches
+    const hasOverlap = acc.some(existing => {
+      const existingStart = existing.position
+      const existingEnd = existingStart + searchValue.length
+      const currentStart = match.position
+      const currentEnd = currentStart + searchValue.length
+      
+      // Check for any overlap
+      return !(currentEnd < existingStart || currentStart > existingEnd) &&
+             // Allow small distance for different matches
+             Math.abs(currentStart - existingStart) < searchValue.length / 2
+    })
+    
+    if (!hasOverlap) {
+      const matchText = match.text.slice(0, searchValue.length)
+      const contextBefore = text.slice(Math.max(0, match.position - 20), match.position)
+      const contextAfter = text.slice(match.position + searchValue.length, match.position + searchValue.length + 20)
+      
+      acc.push({
+        position: match.position,
+        score,
+        formattedText: `${contextBefore}<mark>${matchText}</mark>${contextAfter}`,
+        context: match.text
+      })
     }
-  }).filter(match => match.score > 0.5) // Filter out very low-quality matches
+    
+    return acc
+  }, [])
+  
+  return filteredResults
 }
 
 const findExactOccurrences = (str, searchValue) => {
