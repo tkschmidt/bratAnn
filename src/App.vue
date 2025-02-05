@@ -1,10 +1,10 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
+import BratChecker from './components/BratChecker.vue'
 </script>
 
 <template>
   <div class="app-container">
-    <HelloWorld />
+    <BratChecker />
   </div>
 </template>
 
