@@ -42,7 +42,20 @@
     </div>
 
     <div class="string-matches">
-      <h4>String Position Analysis</h4>
+      <div class="analysis-header">
+        <h4>String Position Analysis</h4>
+        <div class="filter-control">
+          <label>
+            Filter ID:
+            <input 
+              type="text" 
+              v-model="idFilter"
+              placeholder="e.g., T1"
+              class="id-filter"
+            />
+          </label>
+        </div>
+      </div>
       <div class="fuzzy-controls">
         <div class="control-group">
           <label>
@@ -86,7 +99,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="match in stringMatches" 
+          <tr v-for="match in filteredMatches" 
               :key="match.id"
               :class="{ 'position-mismatch': hasNoMatches(match) }">
             <td>{{ match.id }}</td>
@@ -348,6 +361,18 @@ const getScoreClass = (score) => {
 const hasNoMatches = (match) => {
   return match.exactPositions.length === 0 && match.fuzzyMatches.length === 0
 }
+
+const idFilter = ref('')
+
+// Update stringMatches computed to be filtered
+const filteredMatches = computed(() => {
+  const matches = stringMatches.value
+  if (!idFilter.value) return matches
+  
+  return matches.filter(match => 
+    match.id.toLowerCase().includes(idFilter.value.toLowerCase())
+  )
+})
 </script>
 
 <style scoped>
@@ -442,6 +467,33 @@ const hasNoMatches = (match) => {
   width: 100%;
   box-sizing: border-box;
   overflow-x: auto;
+}
+
+.analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.filter-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.id-filter {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 100px;
+}
+
+.id-filter:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
 }
 
 .matches-table {
