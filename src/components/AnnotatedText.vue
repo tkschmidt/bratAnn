@@ -44,18 +44,36 @@
     <div class="string-matches">
       <h4>String Position Analysis</h4>
       <div class="fuzzy-controls">
-        <label>
-          Fuzzy Threshold:
-          <input 
-            type="range" 
-            v-model="fuseThreshold" 
-            min="0" 
-            max="1" 
-            step="0.1"
-            class="threshold-slider"
-          />
-          <span class="threshold-value">{{ fuseThreshold }}</span>
-        </label>
+        <div class="control-group">
+          <label>
+            Fuzzy Threshold:
+            <input 
+              type="range" 
+              v-model.number="fuseThreshold" 
+              min="0" 
+              max="1" 
+              step="0.01"
+              class="threshold-slider"
+            />
+            <span class="threshold-value">{{ fuseThreshold.toFixed(2) }}</span>
+          </label>
+          <span class="control-hint">Lower values = stricter matching</span>
+        </div>
+        <div class="control-group">
+          <label>
+            Distance:
+            <input 
+              type="range" 
+              v-model.number="fuseDistance" 
+              min="0" 
+              max="100" 
+              step="1"
+              class="threshold-slider"
+            />
+            <span class="threshold-value">{{ fuseDistance }}</span>
+          </label>
+          <span class="control-hint">Maximum edit distance allowed</span>
+        </div>
       </div>
       <table class="matches-table">
         <thead>
@@ -70,7 +88,7 @@
         <tbody>
           <tr v-for="match in stringMatches" 
               :key="match.id"
-              :class="{ 'position-mismatch': match.hasPositionMismatch }">
+              :class="{ 'position-mismatch': hasNoMatches(match) }">
             <td>{{ match.id }}</td>
             <td>{{ match.value }}</td>
             <td>{{ match.annotatedPosition }}</td>
@@ -78,16 +96,19 @@
               <span v-if="match.exactPositions.length === 0">Not found</span>
               <span v-else>
                 {{ match.exactPositions.join(', ') }}
-                <span v-if="match.hasPositionMismatch" 
+                <span v-if="!match.exactPositions.includes(match.start_position)" 
                       class="mismatch-warning" 
                       :title="match.mismatchInfo">⚠️</span>
               </span>
             </td>
             <td>
+              <div v-if="match.fuzzyMatches.length === 0">No fuzzy matches found</div>
               <div v-for="(fuzzyMatch, index) in match.fuzzyMatches" 
                    :key="index" 
                    class="fuzzy-match">
                 <div class="match-score">
+                  <span class="score-indicator" 
+                        :class="getScoreClass(fuzzyMatch.score)"></span>
                   Score: {{ fuzzyMatch.score.toFixed(2) }}
                 </div>
                 <div class="context-entry">
@@ -104,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Fuse from 'fuse.js'
 
 const props = defineProps({
@@ -130,7 +151,14 @@ at −20 °C until use`
 
 const sourceText = ref(defaultText)
 const offsetValue = ref(0)
-const fuseThreshold = ref(0.3)
+const fuseThreshold = ref(0.1)
+const fuseDistance = ref(1)
+
+// Force recomputation when fuzzy parameters change
+const fuzzyParams = computed(() => ({
+  threshold: fuseThreshold.value,
+  distance: fuseDistance.value
+}))
 
 // Calculate starting character position for each line
 const lineStartPositions = computed(() => {
@@ -243,54 +271,30 @@ const findFuzzyMatches = (text, searchValue) => {
   const fuse = new Fuse(possibleMatches, {
     keys: ['text'],
     includeScore: true,
-    threshold: fuseThreshold.value,
-    location: 0,
-    distance: Math.floor(searchValue.length / 3), // Reduced distance
-    minMatchCharLength: Math.floor(searchValue.length * 0.8), // Minimum length of match
-    shouldSort: true,
-    findAllMatches: false
+    threshold: fuzzyParams.value.threshold,
+    distance: fuzzyParams.value.distance,
+    location: 0
   })
 
   const results = fuse.search(searchValue)
   
-  // Filter out overlapping matches
-  const filteredResults = results.reduce((acc, result) => {
+  return results.map(result => {
     const match = result.item
     const score = 1 - result.score
     
-    // Skip if score is too low
-    if (score < 0.6) return acc
+    const matchText = match.text.slice(0, searchValue.length)
+    const contextBefore = text.slice(Math.max(0, match.position - 20), match.position)
+    const contextAfter = text.slice(match.position + searchValue.length, match.position + searchValue.length + 20)
     
-    // Check if this match overlaps with any existing matches
-    const hasOverlap = acc.some(existing => {
-      const existingStart = existing.position
-      const existingEnd = existingStart + searchValue.length
-      const currentStart = match.position
-      const currentEnd = currentStart + searchValue.length
-      
-      // Check for any overlap
-      return !(currentEnd < existingStart || currentStart > existingEnd) &&
-             // Allow small distance for different matches
-             Math.abs(currentStart - existingStart) < searchValue.length / 2
-    })
-    
-    if (!hasOverlap) {
-      const matchText = match.text.slice(0, searchValue.length)
-      const contextBefore = text.slice(Math.max(0, match.position - 20), match.position)
-      const contextAfter = text.slice(match.position + searchValue.length, match.position + searchValue.length + 20)
-      
-      acc.push({
-        position: match.position,
-        score,
-        formattedText: `${contextBefore}<mark>${matchText}</mark>${contextAfter}`,
-        context: match.text
-      })
+    return {
+      position: match.position,
+      score,
+      formattedText: `${contextBefore}<mark>${matchText}</mark>${contextAfter}`,
+      context: match.text
     }
-    
-    return acc
-  }, [])
-  
-  return filteredResults
+  })
+  .filter(match => match.score > 0.3)
+  .sort((a, b) => b.score - a.score)
 }
 
 const findExactOccurrences = (str, searchValue) => {
@@ -312,25 +316,38 @@ const findExactOccurrences = (str, searchValue) => {
 const stringMatches = computed(() => {
   if (!sourceText.value) return []
   
+  // Include fuzzyParams in the computation to force reactivity
+  const params = fuzzyParams.value
+  
   return props.annotations.map(ann => {
     const exactPositions = findExactOccurrences(sourceText.value, ann.value)
     const fuzzyMatches = findFuzzyMatches(sourceText.value, ann.value)
     const annotatedPosition = `${ann.start_position}-${ann.stop_position}`
-    const hasPositionMismatch = !exactPositions.includes(ann.start_position)
     
     return {
       id: ann.id,
       value: ann.value.replace(/\n/g, '↵'),
       annotatedPosition,
+      start_position: ann.start_position,
       exactPositions,
       fuzzyMatches,
-      hasPositionMismatch,
-      mismatchInfo: hasPositionMismatch 
+      hasPositionMismatch: !exactPositions.includes(ann.start_position),
+      mismatchInfo: !exactPositions.includes(ann.start_position)
         ? `Annotated position (${ann.start_position}) not found in exact matches`
         : ''
     }
   })
 })
+
+const getScoreClass = (score) => {
+  if (score >= 0.9) return 'score-high'
+  if (score >= 0.5) return 'score-medium'
+  return 'score-low'
+}
+
+const hasNoMatches = (match) => {
+  return match.exactPositions.length === 0 && match.fuzzyMatches.length === 0
+}
 </script>
 
 <style scoped>
@@ -478,16 +495,36 @@ const stringMatches = computed(() => {
 
 .fuzzy-controls {
   margin: 1rem 0;
-  padding: 0.5rem;
+  padding: 1rem;
   background-color: #f5f5f5;
   border-radius: 4px;
   width: 100%;
   box-sizing: border-box;
 }
 
+.control-group {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-hint {
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+}
+
 .threshold-slider {
   width: 200px;
   margin: 0 1rem;
+  vertical-align: middle;
+}
+
+.threshold-value {
+  min-width: 2.5em;
+  display: inline-block;
+  text-align: right;
 }
 
 .fuzzy-match {
@@ -501,9 +538,35 @@ const stringMatches = computed(() => {
 }
 
 .match-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.8rem;
   color: #666;
   margin-bottom: 0.25rem;
+}
+
+.score-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.score-high {
+  background-color: #4caf50;  /* Green */
+  box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
+}
+
+.score-medium {
+  background-color: #ffc107;  /* Yellow */
+  box-shadow: 0 0 4px rgba(255, 193, 7, 0.4);
+}
+
+.score-low {
+  background-color: #f44336;  /* Red */
+  box-shadow: 0 0 4px rgba(244, 67, 54, 0.4);
 }
 
 mark {
