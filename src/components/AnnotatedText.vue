@@ -18,18 +18,27 @@
       placeholder="Paste your source text here..."
       class="text-input"
     ></textarea>
-    <div class="text-display">
-      <template v-for="(chunk, index) in textChunks" :key="index">
-        <span 
-          v-if="chunk.annotation"
-          class="highlighted-text"
-          :style="{ backgroundColor: getColorForKey(chunk.annotation.key) }"
-          :title="`${chunk.annotation.key}: ${chunk.annotation.value}`"
-        >
-          {{ chunk.text }}
-        </span>
-        <span v-else>{{ chunk.text }}</span>
-      </template>
+    <div class="text-display-wrapper">
+      <div class="line-numbers">
+        <div v-for="(position, index) in lineStartPositions" 
+             :key="index" 
+             class="line-number">
+          {{ position }}
+        </div>
+      </div>
+      <div class="text-display">
+        <template v-for="(chunk, index) in textChunks" :key="index">
+          <span 
+            v-if="chunk.annotation"
+            class="highlighted-text"
+            :style="{ backgroundColor: getColorForKey(chunk.annotation.key) }"
+            :title="`${chunk.annotation.key}: ${chunk.annotation.value}`"
+          >
+            {{ chunk.text }}
+          </span>
+          <span v-else>{{ chunk.text }}</span>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -46,6 +55,22 @@ const props = defineProps({
 
 const sourceText = ref('')
 const offsetValue = ref(0)
+
+// Calculate starting character position for each line
+const lineStartPositions = computed(() => {
+  if (!sourceText.value) return []
+  
+  const positions = []
+  let currentPosition = 0
+  const lines = sourceText.value.split('\n')
+  
+  lines.forEach(line => {
+    positions.push(currentPosition)
+    currentPosition += line.length + 1 // +1 for the newline character
+  })
+  
+  return positions
+})
 
 // Create a simple color hash for different annotation keys
 const getColorForKey = (key) => {
@@ -159,17 +184,41 @@ const textChunks = computed(() => {
   margin-bottom: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-  font-family: inherit;
+  font-family: monospace;
   resize: vertical;
 }
 
-.text-display {
-  padding: 1rem;
+.text-display-wrapper {
+  display: flex;
+  gap: 1rem;
   border: 1px solid #eee;
   border-radius: 4px;
   background-color: white;
+}
+
+.line-numbers {
+  padding: 1rem 0.5rem;
+  background-color: #f5f5f5;
+  border-right: 1px solid #eee;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: #666;
+  text-align: right;
+  min-width: 4em;
+  user-select: none;
+}
+
+.line-number {
+  padding: 0 0.5rem;
+  line-height: 1.6;
+}
+
+.text-display {
+  flex: 1;
+  padding: 1rem;
   line-height: 1.6;
   white-space: pre-wrap;
+  font-family: monospace;
 }
 
 .highlighted-text {
