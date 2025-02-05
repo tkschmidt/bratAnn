@@ -23,7 +23,7 @@
           <tbody>
             <tr v-for="ann in parsedAnnotations" :key="ann.id">
               <td>{{ ann.id }}</td>
-              <td>{{ ann.key }}</td>
+              <td :style="getTypeStyle(ann.key)">{{ ann.key }}</td>
               <td>{{ ann.start_position }}</td>
               <td>{{ ann.stop_position }}</td>
               <td>{{ ann.value }}</td>
@@ -46,6 +46,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import AnnotatedText from './AnnotatedText.vue'
+import chroma from 'chroma-js'
 
 const defaultText = `Sample preparation for mass spectrometry. Dried peptide pools
 were initially solubilized in 100% DMSO to a concentration of
@@ -132,6 +133,40 @@ const handleTextChange = () => {
 
 // Initialize with default annotations
 handleTextChange()
+
+// Get unique keys from annotations
+const uniqueKeys = computed(() => {
+  return [...new Set(parsedAnnotations.value.map(ann => ann.key))].sort()
+})
+
+// Generate color map using chroma-js
+const colorMap = computed(() => {
+  const keys = uniqueKeys.value
+  if (keys.length === 0) return new Map()
+
+  let colors
+  if (keys.length <= 8) {
+    colors = chroma.brewer.Set2
+  } else if (keys.length <= 12) {
+    colors = chroma.brewer.Set3
+  } else {
+    colors = chroma
+      .scale(['#00429d', '#93003a', '#35b779', '#ff8e6d', '#ffd700', '#93003a'])
+      .mode('lch')
+      .colors(keys.length)
+  }
+  
+  return new Map(keys.map((key, index) => [
+    key, 
+    chroma(colors[index % colors.length]).alpha(0.2).css()
+  ]))
+})
+
+const getTypeStyle = (type) => {
+  return {
+    backgroundColor: colorMap.value.get(type) || 'rgba(200, 200, 200, 0.2)'
+  }
+}
 </script>
 
 <style scoped>
@@ -221,6 +256,11 @@ handleTextChange()
 .mismatch-info {
   margin-left: 0.5rem;
   cursor: help;
+}
+
+/* Add transition for smoother color display */
+.annotation-table td {
+  transition: background-color 0.2s ease;
 }
 </style>
 

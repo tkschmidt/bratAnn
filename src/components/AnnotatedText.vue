@@ -31,8 +31,8 @@
         <template v-for="(chunk, index) in textChunks" :key="index">
           <span 
             v-if="chunk.annotation"
-            class="highlighted-text"
-            :style="{ backgroundColor: getColorForKey(chunk.annotation.key) }"
+            class="highlighted-text annotation"
+            :style="getAnnotationStyle(chunk.annotation.key)"
             :title="`${chunk.annotation.key}: ${chunk.annotation.value}`"
           >
             {{ chunk.text }}
@@ -144,6 +144,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import Fuse from 'fuse.js'
+import chroma from 'chroma-js'
 
 const props = defineProps({
   annotations: {
@@ -193,18 +194,50 @@ const lineStartPositions = computed(() => {
   return positions
 })
 
-// Create a simple color hash for different annotation keys
-const getColorForKey = (key) => {
-  const colors = {
-    'Compound': '#ffcdd2',
-    'ConcentrationOfCompound': '#c8e6c9',
-    'Time': '#bbdefb',
-    'Temperature': '#fff9c4',
-    'SpikedCompound': '#e1bee7',
-    'NumberOfSamples': '#b2dfdb',
-    'Label': '#ffccbc'
+// Get unique keys from annotations
+const uniqueKeys = computed(() => {
+  return [...new Set(props.annotations.map(ann => ann.key))].sort()  // Sort for consistent ordering
+})
+
+// Generate color map using chroma-js
+const colorMap = computed(() => {
+  const keys = uniqueKeys.value
+  if (keys.length === 0) return new Map()
+
+  // Use a qualitative color scale that's better for categorical data
+  let colors
+  if (keys.length <= 8) {
+    colors = chroma.brewer.Set2  // For fewer categories
+  } else if (keys.length <= 12) {
+    colors = chroma.brewer.Set3  // For medium number of categories
+  } else {
+    // For many categories, generate custom rainbow scale
+    colors = chroma
+      .scale(['#00429d', '#93003a', '#35b779', '#ff8e6d', '#ffd700', '#93003a'])
+      .mode('lch')
+      .colors(keys.length)
   }
-  return colors[key] || '#f5f5f5'
+  
+  // Create a map of key -> color
+  return new Map(keys.map((key, index) => [
+    key, 
+    {
+      backgroundColor: chroma(colors[index % colors.length]).alpha(0.2).css(),
+      ':hover': {
+        backgroundColor: chroma(colors[index % colors.length]).alpha(0.4).css()
+      }
+    }
+  ]))
+})
+
+// Get styles for a specific annotation type
+const getAnnotationStyle = (type) => {
+  return colorMap.value.get(type) || {
+    backgroundColor: 'rgba(200, 200, 200, 0.2)',
+    ':hover': {
+      backgroundColor: 'rgba(200, 200, 200, 0.4)'
+    }
+  }
 }
 
 const adjustedAnnotations = computed(() => {
@@ -630,5 +663,10 @@ mark {
 .mismatch-warning {
   margin-left: 0.5rem;
   cursor: help;
+}
+
+.annotation {
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
 }
 </style> 
