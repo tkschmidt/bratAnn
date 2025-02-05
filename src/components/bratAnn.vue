@@ -1,20 +1,46 @@
 <template>
   <div class="brat-annotation">
-    <textarea 
-      v-model="inputText" 
-      placeholder="Paste your BRAT annotations here..."
-      class="text-input"
-      @input="handleTextChange"
-    ></textarea>
-    <div class="parsed-output">
-      <p>Parsed Annotations:</p>
-      <pre>{{ JSON.stringify(parsedAnnotations, null, 2) }}</pre>
+    <div class="annotation-input">
+      <textarea 
+        v-model="inputText" 
+        placeholder="Paste your BRAT annotations here..."
+        class="text-input"
+        @input="handleTextChange"
+      ></textarea>
+      <div class="parsed-output">
+        <p>Parsed Annotations:</p>
+        <table class="annotation-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Start</th>
+              <th>Stop</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="ann in parsedAnnotations" :key="ann.id">
+              <td>{{ ann.id }}</td>
+              <td>{{ ann.key }}</td>
+              <td>{{ ann.start_position }}</td>
+              <td>{{ ann.stop_position }}</td>
+              <td>{{ ann.value }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="text-visualization">
+      <h3>Text Visualization</h3>
+      <AnnotatedText :annotations="parsedAnnotations" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import AnnotatedText from './AnnotatedText.vue'
 
 const inputText = ref('')
 const parsedAnnotations = ref([])
@@ -48,6 +74,10 @@ const handleTextChange = () => {
   padding: 1rem;
 }
 
+.annotation-input, .text-visualization {
+  margin-bottom: 2rem;
+}
+
 .text-input {
   width: 100%;
   min-height: 150px;
@@ -67,10 +97,31 @@ const handleTextChange = () => {
   overflow-x: auto;
 }
 
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: monospace;
+.annotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.annotation-table th,
+.annotation-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.annotation-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.annotation-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.annotation-table tr:hover {
+  background-color: #f0f0f0;
 }
 </style>
 
